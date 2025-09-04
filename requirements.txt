@@ -1,12 +1,15 @@
 numpy<2
-tensorflow-cpu==2.20.0
 streamlit
 pillow
 opencv-python
 matplotlib
 scikit-image
+tensorflow-cpu==2.15.0
+keras==2.15.0
 setuptools
 wheel
+
+
 
 
 
