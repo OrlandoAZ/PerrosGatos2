@@ -1,10 +1,20 @@
+# Núcleo
 numpy>=1.26
 tensorflow>=2.15
+
+# Visualización
+matplotlib
 streamlit
+
+# Procesamiento de imágenes
 opencv-python
 pillow
+
+# Soporte básico de instalación
 setuptools>=65
 wheel
+
+
 
 
 
