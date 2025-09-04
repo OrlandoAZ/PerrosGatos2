@@ -1,13 +1,13 @@
-numpy>=1.26
-tensorflow==2.15
-keras==2.15
+numpy<2
+tensorflow==2.15.0
+keras==2.15.0
 streamlit
 matplotlib
 opencv-python
 pillow
 scikit-image
-setuptools>=65
-wheel
+
+
 
 
 
