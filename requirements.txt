@@ -1,19 +1,15 @@
-# Núcleo
 numpy>=1.26
-tensorflow>=2.15
-
-# Visualización
-matplotlib
+tensorflow==2.15
+keras==2.15
 streamlit
-
-# Procesamiento de imágenes
+matplotlib
 opencv-python
 pillow
 scikit-image
-
-# Soporte básico de instalación
 setuptools>=65
 wheel
+
+
 
 
 
