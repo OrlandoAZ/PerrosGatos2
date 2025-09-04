@@ -9,10 +9,13 @@ streamlit
 # Procesamiento de imágenes
 opencv-python
 pillow
+scikit-image
 
 # Soporte básico de instalación
 setuptools>=65
 wheel
+
+
 
 
 
