@@ -6,8 +6,8 @@ matplotlib
 scikit-image
 tensorflow==2.20.0rc0
 keras
-setuptools
-wheel
+
+
 
 
 
