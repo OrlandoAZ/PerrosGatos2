@@ -7,7 +7,7 @@
 
 import os
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-
+import tensorflow as tf
 import streamlit as st
 import numpy as np
 from keras.models import load_model
@@ -31,8 +31,8 @@ DepthwiseConv2D.from_config = patched_from_config
 # ==============================
 # CARGAR MODELO
 # ==============================
-model = load_model("keras_modelset.h5", compile=False)
-
+#model = load_model("keras_modelset.h5", compile=False)
+model = tf.keras.models.load_model("keras_modelset.h5", compile=False)
 # Labels (ajusta si usas más clases)
 class_labels = ["gato", "perro"]
 
@@ -98,3 +98,4 @@ if uploaded_file is not None:
 
     
     #streamlit run streamlitff.py  
+
