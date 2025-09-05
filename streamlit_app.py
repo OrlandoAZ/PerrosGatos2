@@ -35,7 +35,7 @@ def load_my_model():
     
     # --- Cargar únicamente los Pesos ---
     # Este es el paso clave. No cargamos el modelo, solo los pesos entrenados.
-    model.load_weights('keras_modelset.h5')
+    model.load_weights('keras_modelset.h5', by_name=True)
     
     return model, class_labels
 
@@ -81,6 +81,7 @@ if uploaded_file is not None:
         
         message = f'<p style="color: {color}; font-size: 24px;">La imagen es un <b>{predicted_class_label}</b> con una probabilidad de {predicted_probability:.2%}</p>'
         st.markdown(message, unsafe_allow_html=True)
+
 
 
 
