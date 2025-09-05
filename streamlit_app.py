@@ -1,5 +1,5 @@
 # ========================================
-#  STREAMLIT APP - CLASIFICACIÓN (VERSIÓN SIMPLE Y CORRECTA)
+#  STREAMLIT APP - CLASIFICACIÓN (VERSIÓN FINAL CON PARCHE)
 # ========================================
 
 import os
@@ -8,14 +8,31 @@ import tensorflow as tf
 import streamlit as st
 import numpy as np
 from PIL import Image, ImageOps
+from keras.layers import DepthwiseConv2D # Importación necesaria para el parche
+
+# ========================================
+# PARCHE DE COMPATIBILIDAD para DepthwiseConv2D
+# ========================================
+# Este código intercepta la carga de la capa DepthwiseConv2D
+# y elimina el argumento 'groups' que causa el error en algunas versiones de Keras.
+try:
+    original_from_config = DepthwiseConv2D.from_config
+    @classmethod
+    def patched_from_config(cls, config):
+        config.pop('groups', None)
+        return original_from_config(config)
+    DepthwiseConv2D.from_config = patched_from_config
+except AttributeError:
+    # Si la versión de Keras es tan nueva que ya no tiene .from_config,
+    # es posible que el parche no sea necesario. Lo ignoramos.
+    pass
 
 # ========================================
 # FUNCIÓN PARA CARGAR EL MODELO (CON CACHÉ)
 # ========================================
-# La forma más simple y correcta: cargar el modelo directamente.
-# Usamos @st.cache_resource para que esto solo ocurra una vez.
 @st.cache_resource
 def load_the_model():
+    # Cargar el modelo. El parche anterior se encargará del error.
     model = tf.keras.models.load_model('keras_modelset.h5', compile=False)
     
     # Leer las etiquetas desde el archivo
@@ -27,9 +44,6 @@ def load_the_model():
 # Cargar el modelo y las etiquetas
 try:
     model, class_labels = load_the_model()
-    # Crear directorio temporal
-    temp_dir = "/tmp/temp"
-    os.makedirs(temp_dir, exist_ok=True)
 except Exception as e:
     st.error(f"Error fatal al cargar el modelo: {e}")
     st.stop()
@@ -56,7 +70,6 @@ st.write("Sube una imagen y el modelo (entrenado con Teachable Machine) la clasi
 uploaded_file = st.file_uploader("Selecciona una imagen", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
-    # No es necesario guardar el archivo en disco, podemos procesarlo en memoria
     image = Image.open(uploaded_file).convert('RGB')
     st.image(image, caption="Imagen seleccionada", use_column_width=True)
     
@@ -70,5 +83,6 @@ if uploaded_file is not None:
         
         message = f'<p style="color: {color}; font-size: 24px;">La imagen es un <b>{predicted_class_label}</b> con una probabilidad de {predicted_probability:.2%}</p>'
         st.markdown(message, unsafe_allow_html=True)
+
 
 
