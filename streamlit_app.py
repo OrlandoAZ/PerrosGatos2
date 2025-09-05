@@ -1,5 +1,5 @@
 # ========================================
-#  STREAMLIT APP - CLASIFICACIÓN (VERSIÓN ROBUSTA FINAL)
+#  STREAMLIT APP - CLASIFICACIÓN (VERSIÓN FINAL CON DEPURACIÓN)
 # ========================================
 
 import os
@@ -10,38 +10,20 @@ import numpy as np
 from PIL import Image, ImageOps
 
 # ========================================
-# FUNCIÓN PARA CARGAR EL MODELO (CON CACHÉ Y ARQUITECTURA MANUAL)
+# FUNCIÓN PARA CARGAR EL MODELO (CON CACHÉ)
 # ========================================
 @st.cache_resource
-def load_my_model():
-    # --- Recrear la Arquitectura del Modelo ---
-    # Esto evita los errores de deserialización del archivo .h5 en Keras 3
-    class_labels = ["gato", "perro"]
-    input_shape = (224, 224, 3)
+def load_the_model():
+    model = tf.keras.models.load_model('keras_modelset.h5', compile=False)
     
-    base_model = tf.keras.applications.MobileNetV2(
-        input_shape=input_shape,
-        include_top=False, 
-        weights=None, # No descargar pesos, los cargaremos desde el archivo local
-        alpha=0.5
-    )
-    base_model.trainable = False
-
-    model = tf.keras.Sequential([
-        base_model,
-        tf.keras.layers.GlobalAveragePooling2D(),
-        tf.keras.layers.Dense(len(class_labels), activation='softmax')
-    ])
-    
-    # --- Cargar únicamente los Pesos ---
-    # Este es el paso clave. No cargamos el modelo, solo los pesos entrenados.
-    model.load_weights('keras_modelset.h5', by_name=True)
-    
+    with open("labels.txt", "r") as f:
+        class_labels = [line.strip().split(' ', 1)[1] for line in f]
+        
     return model, class_labels
 
 # Cargar el modelo y las etiquetas
 try:
-    model, class_labels = load_my_model()
+    model, class_labels = load_the_model()
 except Exception as e:
     st.error(f"Error fatal al cargar el modelo: {e}")
     st.stop()
@@ -69,10 +51,16 @@ uploaded_file = st.file_uploader("Selecciona una imagen", type=["jpg", "jpeg", "
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file).convert('RGB')
-    st.image(image, caption="Imagen seleccionada", use_column_width=True)
+    # Arreglo de la advertencia: use_container_width en lugar de use_column_width
+    st.image(image, caption="Imagen seleccionada", use_container_width=True)
     
     with st.spinner("Clasificando..."):
         pred = clasificar_imagen(image, model)
+        
+        # --- LÍNEA DE DEPURACIÓN ---
+        # Esta línea nos mostrará los valores exactos que da el modelo
+        st.write(f"Valores de predicción crudos (Gato, Perro): {pred}")
+        
         predicted_class_index = np.argmax(pred)
         predicted_class_label = class_labels[predicted_class_index]
         predicted_probability = pred[predicted_class_index]
@@ -81,6 +69,7 @@ if uploaded_file is not None:
         
         message = f'<p style="color: {color}; font-size: 24px;">La imagen es un <b>{predicted_class_label}</b> con una probabilidad de {predicted_probability:.2%}</p>'
         st.markdown(message, unsafe_allow_html=True)
+
 
 
 
