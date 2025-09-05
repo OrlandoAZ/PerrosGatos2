@@ -1,5 +1,5 @@
 # ========================================
-#  STREAMLIT APP - CLASIFICACIÓN (VERSIÓN FINAL CON PARCHE)
+#  STREAMLIT APP - CLASIFICACIÓN (VERSIÓN ROBUSTA FINAL)
 # ========================================
 
 import os
@@ -8,42 +8,40 @@ import tensorflow as tf
 import streamlit as st
 import numpy as np
 from PIL import Image, ImageOps
-from keras.layers import DepthwiseConv2D # Importación necesaria para el parche
 
 # ========================================
-# PARCHE DE COMPATIBILIDAD para DepthwiseConv2D
-# ========================================
-# Este código intercepta la carga de la capa DepthwiseConv2D
-# y elimina el argumento 'groups' que causa el error en algunas versiones de Keras.
-try:
-    original_from_config = DepthwiseConv2D.from_config
-    @classmethod
-    def patched_from_config(cls, config):
-        config.pop('groups', None)
-        return original_from_config(config)
-    DepthwiseConv2D.from_config = patched_from_config
-except AttributeError:
-    # Si la versión de Keras es tan nueva que ya no tiene .from_config,
-    # es posible que el parche no sea necesario. Lo ignoramos.
-    pass
-
-# ========================================
-# FUNCIÓN PARA CARGAR EL MODELO (CON CACHÉ)
+# FUNCIÓN PARA CARGAR EL MODELO (CON CACHÉ Y ARQUITECTURA MANUAL)
 # ========================================
 @st.cache_resource
-def load_the_model():
-    # Cargar el modelo. El parche anterior se encargará del error.
-    model = tf.keras.models.load_model('keras_modelset.h5', compile=False)
+def load_my_model():
+    # --- Recrear la Arquitectura del Modelo ---
+    # Esto evita los errores de deserialización del archivo .h5 en Keras 3
+    class_labels = ["gato", "perro"]
+    input_shape = (224, 224, 3)
     
-    # Leer las etiquetas desde el archivo
-    with open("labels.txt", "r") as f:
-        class_labels = [line.strip().split(' ', 1)[1] for line in f]
-        
+    base_model = tf.keras.applications.MobileNetV2(
+        input_shape=input_shape,
+        include_top=False, 
+        weights=None, # No descargar pesos, los cargaremos desde el archivo local
+        alpha=0.5
+    )
+    base_model.trainable = False
+
+    model = tf.keras.Sequential([
+        base_model,
+        tf.keras.layers.GlobalAveragePooling2D(),
+        tf.keras.layers.Dense(len(class_labels), activation='softmax')
+    ])
+    
+    # --- Cargar únicamente los Pesos ---
+    # Este es el paso clave. No cargamos el modelo, solo los pesos entrenados.
+    model.load_weights('keras_modelset.h5')
+    
     return model, class_labels
 
 # Cargar el modelo y las etiquetas
 try:
-    model, class_labels = load_the_model()
+    model, class_labels = load_my_model()
 except Exception as e:
     st.error(f"Error fatal al cargar el modelo: {e}")
     st.stop()
