@@ -1,10 +1,13 @@
 streamlit
-tensorflow==2.15.0
+tensorflow==2.11
 opencv-python
+numpy==1.26.4
+matplotlib
 pillow
 scikit-image
-numpy
-matplotlib
+
+
+
 
 
 
