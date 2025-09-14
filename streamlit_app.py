@@ -1,90 +1,101 @@
 # ========================================
-#  STREAMLIT APP - CLASIFICACIÓN (VERSIÓN FINAL Y SIMPLE)
+#  STREAMLIT APP - CLASIFICACIÓN PERROS Y GATOS
 # ========================================
+
+# Instalar dependencias (ejecutar en terminal antes de correr streamlit)
+# pip install streamlit pillow opencv-python matplotlib scikit-image tensorflow==2.15 keras==2.15
 
 import os
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 import tensorflow as tf
 import streamlit as st
 import numpy as np
+from keras.models import load_model
+from keras.layers import DepthwiseConv2D
 from PIL import Image, ImageOps
-from keras.layers import DepthwiseConv2D # Importación necesaria para el parche
+import matplotlib.pyplot as plt
+from skimage import io
 
-# ========================================
-# PARCHE DE COMPATIBILIDAD para DepthwiseConv2D
-# ========================================
-# Este es el parche clave que tu modelo necesita para que load_model funcione
-# en tu versión de Keras. Elimina el argumento 'groups' que causa el error.
-try:
-    original_from_config = DepthwiseConv2D.from_config
-    @classmethod
-    def patched_from_config(cls, config):
-        config.pop('groups', None)
-        return original_from_config(config)
-    DepthwiseConv2D.from_config = patched_from_config
-except Exception:
-    pass # Ignorar si el parche no es necesario en la versión actual de Keras
+# ==============================
+# PATCH para DepthwiseConv2D (por compatibilidad con keras==2.15.0)
+# ==============================
+original_from_config = DepthwiseConv2D.from_config
 
-# ========================================
-# FUNCIÓN PARA CARGAR EL MODELO (MÉTODO SIMPLE Y CORRECTO)
-# ========================================
-@st.cache_resource
-def load_the_model():
-    # Cargar el modelo directamente. El parche anterior se encargará del error.
-    model = tf.keras.models.load_model('keras_modelset.h5', compile=False)
-    
-    # Leer las etiquetas desde el archivo
-    with open("labels.txt", "r") as f:
-        # Asumimos que labels.txt tiene formato como '0 Gato', '1 Perro'
-        class_labels = [line.strip().split(' ', 1)[1] for line in f if line.strip()]
-        
-    return model, class_labels
+@classmethod
+def patched_from_config(cls, config):
+    config.pop('groups', None)  # elimina argumento 'groups' si existe
+    return original_from_config(config)
 
-# Cargar el modelo y las etiquetas
-try:
-    model, class_labels = load_the_model()
-except Exception as e:
-    st.error(f"Error fatal al cargar el modelo: {e}")
-    st.stop()
+DepthwiseConv2D.from_config = patched_from_config
 
-# ========================================
+# ==============================
+# CARGAR MODELO
+# ==============================
+#model = load_model("keras_modelset.h5", compile=False)import tensorflow as tf
+model = tf.keras.models.load_model("keras_modelset.h5", compile=False)
+
+# Labels (ajusta si usas más clases)
+class_labels = ["gato", "perro"]
+
+# Crear directorio temporal
+temp_dir = "temp"
+os.makedirs(temp_dir, exist_ok=True)
+
+# ==============================
 # FUNCIÓN DE CLASIFICACIÓN
-# ========================================
-def clasificar_imagen(image_object, model_to_predict):
-    img_resized = ImageOps.fit(image_object, (224, 224), Image.Resampling.LANCZOS)
+# ==============================
+def clasificar_imagen(imagen_path):
+    img_array = io.imread(imagen_path) / 255.0
+    img_resized = ImageOps.fit(
+        Image.fromarray((img_array * 255).astype(np.uint8)),
+        (224, 224),
+        Image.Resampling.LANCZOS
+    )
     img_array_resized = np.asarray(img_resized)
     normalized_image_array = (img_array_resized.astype(np.float32) / 127.5) - 1
     data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
     data[0] = normalized_image_array
-    
-    pred = model_to_predict.predict(data)[0]
+    pred = model.predict(data)[0]
     return pred
 
-# ========================================
-# INTERFAZ DE STREAMLIT
-# ========================================
+# ==============================
+# INTERFAZ STREAMLIT
+# ==============================
 st.title("🐶🐱 Clasificador de Perros y Gatos")
-st.write("Sube una imagen y el modelo (entrenado con Teachable Machine) la clasificará.")
+st.write("Sube una imagen y el modelo (Teachable Machine) la clasificará.")
 
 uploaded_file = st.file_uploader("Selecciona una imagen", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
-    image = Image.open(uploaded_file).convert('RGB')
-    st.image(image, caption="Imagen seleccionada", use_container_width=True)
-    
-    with st.spinner("Clasificando..."):
-        pred = clasificar_imagen(image, model)
-        
-        st.write(f"Valores de predicción crudos {class_labels}: {pred}")
-        
-        predicted_class_index = np.argmax(pred)
-        predicted_class_label = class_labels[predicted_class_index]
-        predicted_probability = pred[predicted_class_index]
-        
-        color = "red" if "gato" in predicted_class_label.lower() else "green"
-        
-        message = f'<p style="color: {color}; font-size: 24px;">Predicción: <b>{predicted_class_label}</b> ({predicted_probability:.2%})</p>'
-        st.markdown(message, unsafe_allow_html=True)
+    # Guardar archivo temporal
+    temp_path = os.path.join(temp_dir, uploaded_file.name)
+    with open(temp_path, "wb") as f:
+        f.write(uploaded_file.read())
+
+    # Mostrar imagen
+    lena_rgb = io.imread(temp_path) / 255.0
+    fig, ax = plt.subplots()
+    ax.imshow(lena_rgb)
+    ax.set_title("Imagen seleccionada")
+    ax.axis("off")
+    st.pyplot(fig)
+
+    # Clasificar
+    pred = clasificar_imagen(temp_path)
+    predicted_class = np.argmax(pred)
+    predicted_probability = pred[predicted_class]
+
+    # Color dinámico según clase
+    color = "red" if predicted_class == 0 else "green"
+
+    # Mostrar resultado
+    message = f'<p style="color: {color}; font-size: 24px;">La imagen es un <b>{class_labels[predicted_class]}</b> con una probabilidad de {predicted_probability:.3f}</p>'
+    st.markdown(message, unsafe_allow_html=True)
+
+    # Eliminar archivo temporal
+    os.remove(temp_path)
+
+
 
 
 
